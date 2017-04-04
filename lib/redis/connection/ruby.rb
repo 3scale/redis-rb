@@ -96,9 +96,6 @@ class Redis
             raise Redis::TimeoutError
           end
         end
-
-      rescue EOFError
-        raise Errno::ECONNRESET
       end
 
       def _write_to_socket(data)
@@ -118,9 +115,6 @@ class Redis
             raise Redis::TimeoutError
           end
         end
-
-      rescue EOFError
-        raise Errno::ECONNRESET
       end
 
       def write(data)
@@ -177,9 +171,6 @@ class Redis
 
           def _read_from_socket(nbytes)
             readpartial(nbytes)
-
-          rescue EOFError
-            raise Errno::ECONNRESET
           end
         end
 
