@@ -128,27 +128,30 @@ class Redis
     end
 
     def call_loop(command, timeout = 0)
-      error = nil
+      with_reconnect do
+        error = nil
 
-      result = with_socket_timeout(timeout) do
-        process([command]) do
-          loop do
-            reply = read
-            if reply.is_a?(CommandError)
-              error = reply
-              break
-            else
-              yield reply
+        result = with_socket_timeout(timeout) do
+          process([command]) do
+            loop do
+              reply = read
+              @reconnect = false
+              if reply.is_a?(CommandError)
+                error = reply
+                break
+              else
+                yield reply
+              end
             end
           end
         end
+
+        # Raise error when previous block broke out of the loop.
+        raise error if error
+
+        # Result is set to the value that the provided block used to break.
+        result
       end
-
-      # Raise error when previous block broke out of the loop.
-      raise error if error
-
-      # Result is set to the value that the provided block used to break.
-      result
     end
 
     def call_pipeline(pipeline)
