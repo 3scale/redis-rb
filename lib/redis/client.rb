@@ -348,6 +348,7 @@ class Redis
     def ensure_connected
       disconnect if @pending_reads > 0
 
+      eof_retries = 0
       attempts = 0
 
       begin
@@ -365,6 +366,23 @@ class Redis
         end
 
         yield
+      rescue ::EOFError
+        # This situation happens whenever a FIN is received and we tried to
+        # read from the socket, with our connection in the CLOSE_WAIT state.
+        # Since our protocol always returns data when a command is actually
+        # performed by the server, there is no way the command could have
+        # been executed, because we could not have received the FIN in the
+        # first place - unless, of course, we had a buggy proxy in the middle.
+        #
+        # That means we can retry the call.
+        disconnect
+
+        if eof_retries == 0 && @reconnect
+          eof_retries += 1
+          retry
+        else
+          raise
+        end
       rescue BaseConnectionError
         disconnect
 
