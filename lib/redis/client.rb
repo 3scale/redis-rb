@@ -382,8 +382,16 @@ class Redis
         end
 
         yield
-      rescue BaseConnectionError
+      rescue BaseConnectionError => e
         disconnect
+
+        # Timeouts are the only "BaseConnectionError" that are not safe to
+        # retry.
+        # This conditional raise solves this issue
+        # https://github.com/redis/redis-rb/issues/668. In the example shown,
+        # there's a timeout while deleting a bit set, and the command is
+        # executed twice in Redis.
+        raise if e.is_a?(TimeoutError)
 
         if attempts <= @options[:reconnect_attempts] && @reconnect
           sleep_t = [(@options[:reconnect_delay] * 2**(attempts-1)),
